@@ -35,9 +35,9 @@ public class ClientHandler {
                 out = new ObjectOutputStream(socket.getOutputStream());
                 in = new ObjectInputStream(socket.getInputStream());
                 ConsoleLogger.clientConnectedToServer(socket.getInetAddress().toString());
+                socket.setSoTimeout(120000);
 
                 auth();
-
                 readMessage();
             } catch (IOException e) {
                 ConsoleLogger.clientInterruptedConnection(clientNick);
@@ -94,6 +94,7 @@ public class ClientHandler {
                         status = SessionStatus.CONNECTED;
                         sendMsg(answerMsg);
                         server.connectClient(this);
+                        socket.setSoTimeout(0);
                         ConsoleLogger.clientPassedAuth(clientNick, socket.getInetAddress().toString());
                     } catch (AuthExceptions e) {
                         answerMsg = Message.createAuthFailMessage(e.getReason());
