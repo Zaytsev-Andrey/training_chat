@@ -31,4 +31,9 @@ public class ConsoleLogger {
     public static void serverIsRunning() {
         System.out.printf("[%s]: Server is running\n", dateFormat.format(new Date()));
     }
+
+    public static void authorizationTimedOut(String address) {
+        System.out.printf("[%s]: Authorization timed out with address %s\n", dateFormat.format(new Date()), address);
+
+    }
 }
