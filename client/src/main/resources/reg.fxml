@@ -17,7 +17,7 @@
 
     <Label fx:id="regWrongAuthMessage" />
     <TextField fx:id="regLoginField" promptText="Input login" />
-    <TextField fx:id="regPasswordField" promptText="Input password" />
+    <PasswordField fx:id="regPasswordField" promptText="Input password" />
     <TextField fx:id="regNickField" promptText="Input nick" />
 
     <Button fx:id="btnReg" text="Registration" onAction="#regAction" />

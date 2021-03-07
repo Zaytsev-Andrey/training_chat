@@ -37,7 +37,7 @@ public class Controller implements Initializable {
     @FXML
     private TextField loginField;
     @FXML
-    private TextField passwordField;
+    private PasswordField passwordField;
     @FXML
     private MenuItem menuLogOf;
     @FXML
