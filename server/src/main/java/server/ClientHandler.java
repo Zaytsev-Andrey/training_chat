@@ -36,7 +36,7 @@ public class ClientHandler {
                 out = new ObjectOutputStream(socket.getOutputStream());
                 in = new ObjectInputStream(socket.getInputStream());
                 ConsoleLogger.clientConnectedToServer(socket.getInetAddress().toString());
-                socket.setSoTimeout(5000);
+                socket.setSoTimeout(120000);
 
                 auth();
                 readMessage();
