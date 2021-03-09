@@ -63,7 +63,7 @@ public class SimpleUserStorage implements UserStorage {
     }
 
     @Override
-    public String login(String login, String password) {
+    public Client login(String login, String password) {
         Optional<String> nick =  users.stream()
                 .filter(u -> u.login.equals(login.toLowerCase()) && u.password.equals(password))
                 .map(u -> u.nick)
@@ -73,6 +73,7 @@ public class SimpleUserStorage implements UserStorage {
             throw new AuthExceptions(ReasonAuthExceptions.INCORRECT_LOGIN_OR_PASS);
         }
 
-        return nick.get();
+//        return nick.get();
+        return new Client(0, "");
     }
 }

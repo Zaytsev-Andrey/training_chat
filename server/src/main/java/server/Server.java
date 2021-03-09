@@ -3,12 +3,14 @@ package server;
 import log.ConsoleLogger;
 import messages.Message;
 import parameters.Parameter;
+import server.storages.SQLiteStorage;
 import server.storages.SimpleUserStorage;
 import server.storages.UserStorage;
 
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.sql.SQLException;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.stream.Collectors;
 
@@ -16,20 +18,22 @@ public class Server {
     private ServerSocket serverSocket;
     private Socket socket;
     private CopyOnWriteArrayList<ClientHandler> activeClients;
+    private UserStorage userStorage;
 
     public Server() {
         try {
             activeClients = new CopyOnWriteArrayList();
             serverSocket = new ServerSocket(Parameter.PORT);
             ConsoleLogger.serverIsRunning();
-            UserStorage userStorage = new SimpleUserStorage();
-
+            userStorage = new SQLiteStorage();
 
             while (true) {
                 socket = serverSocket.accept();
                 new ClientHandler(socket, this, userStorage);
             }
 
+        } catch (ClassNotFoundException | SQLException e) {
+            e.printStackTrace();
         } catch (IOException e) {
             e.printStackTrace();
         } finally {
@@ -39,6 +43,10 @@ public class Server {
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
+            }
+
+            if (userStorage != null) {
+                userStorage.disconnected();
             }
         }
     }
@@ -70,7 +78,7 @@ public class Server {
         sendUserList();
     }
 
-    private void sendUserList() {
+    public void sendUserList() {
         Message message = Message.createUserListMessage(activeClients.stream()
                 .map(ClientHandler::getClientNick)
                 .collect(Collectors.toList()));
@@ -78,9 +86,9 @@ public class Server {
         broadcastMessage(message);
     }
 
-    public boolean isClientConnected(String nick) {
+    public boolean isClientConnected(int id) {
         return activeClients.stream()
-                .map(ClientHandler::getClientNick)
-                .anyMatch(c -> c.equals(nick));
+                .map(ClientHandler::getClientID)
+                .anyMatch(c -> c.equals(id));
     }
 }

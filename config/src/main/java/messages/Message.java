@@ -4,6 +4,7 @@ import comands.ReasonAuthExceptions;
 
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 
 public class Message implements Serializable {
@@ -12,10 +13,13 @@ public class Message implements Serializable {
     private String login;
     private String password;
     private String nick;
+    private String newNick;
     private String sender;
     private String recipient;
     private String reasonAuthException;
     private List<String> activeUser;
+    private List<String[]> messageList;
+    private Date date;
 
     private Message() {
 
@@ -65,11 +69,37 @@ public class Message implements Serializable {
         return message;
     }
 
+    public static Message createChangeNickMessage(String newNick) {
+        Message message = new Message();
+        message.type = MessageType.CHANGE_NICK.name();
+        message.newNick = newNick;
+
+        return message;
+    }
+
+    public static Message createChangeNickOkMessage(String newNick) {
+        Message message = new Message();
+        message.type = MessageType.CHANGE_NICK_OK.name();
+        message.nick = newNick;
+
+        return message;
+    }
+
+    public static Message createChangeNickFailMessage(ReasonAuthExceptions reason) {
+        Message message = new Message();
+        message.type = MessageType.CHANGE_NICK_FAIL.name();
+        message.reasonAuthException = reason.name();
+
+        return message;
+    }
+
     public static Message createTextMessage(String text, String sender) {
         Message message = new Message();
         message.type = MessageType.TEXT.name();
         message.text = text;
         message.sender = sender;
+        message.recipient = "All";
+        message.date = new Date();
         return message;
     }
 
@@ -79,6 +109,20 @@ public class Message implements Serializable {
         message.text = text;
         message.sender = sender;
         message.recipient = recipient;
+        return message;
+    }
+
+    public static Message createGetTextMessage(String sender) {
+        Message message = new Message();
+        message.type = MessageType.GET_TEXT.name();
+        message.sender = sender;
+        return message;
+    }
+
+    public static Message createTextListMessage(List<String[]> messageList) {
+        Message message = new Message();
+        message.type = MessageType.TEXT_LIST.name();
+        message.messageList = messageList;
         return message;
     }
 
@@ -119,6 +163,10 @@ public class Message implements Serializable {
         return nick;
     }
 
+    public String getNewNick() {
+        return newNick;
+    }
+
     public String getReasonMessage() {
         return ReasonAuthExceptions.valueOf(reasonAuthException).getMessage();
     }
@@ -133,5 +181,13 @@ public class Message implements Serializable {
 
     public String getRecipient() {
         return recipient;
+    }
+
+    public Date getDate() {
+        return date;
+    }
+
+    public List<String[]> getMessageList() {
+        return messageList;
     }
 }
