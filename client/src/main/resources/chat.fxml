@@ -13,11 +13,14 @@
 <?import javafx.scene.layout.Pane?>
 <?import javafx.scene.control.PasswordField?>
 <?import javafx.scene.control.ListView?>
+<?import javafx.scene.control.SeparatorMenuItem?>
 <VBox fx:controller="client.Controller"
       xmlns:fx="http://javafx.com/fxml" alignment="center" stylesheets="css/style.css">
 
     <MenuBar>
         <Menu text="File">
+            <MenuItem fx:id="menuChangeNick" text="Change Nick" onAction="#changeNick" disable="true" />
+            <SeparatorMenuItem />
             <MenuItem fx:id="menuLogOf" text="Log off" onAction="#logOffAction" disable="true"/>
         </Menu>
     </MenuBar>

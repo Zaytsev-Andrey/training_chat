@@ -2,13 +2,14 @@ package server;
 
 import log.ConsoleLogger;
 import messages.Message;
-import parameters.Parameter;
-import server.storages.SimpleUserStorage;
+import parameters.ParameterApp;
+import server.storages.SQLiteStorage;
 import server.storages.UserStorage;
 
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.sql.SQLException;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.stream.Collectors;
 
@@ -16,13 +17,14 @@ public class Server {
     private ServerSocket serverSocket;
     private Socket socket;
     private CopyOnWriteArrayList<ClientHandler> activeClients;
+    private UserStorage userStorage;
 
     public Server() {
         try {
+            userStorage = new SQLiteStorage();
             activeClients = new CopyOnWriteArrayList();
-            serverSocket = new ServerSocket(Parameter.PORT);
+            serverSocket = new ServerSocket(ParameterApp.PORT);
             ConsoleLogger.serverIsRunning();
-            UserStorage userStorage = new SimpleUserStorage();
 
 
             while (true) {
@@ -30,6 +32,8 @@ public class Server {
                 new ClientHandler(socket, this, userStorage);
             }
 
+        } catch (ClassNotFoundException | SQLException e) {
+            e.printStackTrace();
         } catch (IOException e) {
             e.printStackTrace();
         } finally {
@@ -39,6 +43,10 @@ public class Server {
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
+            }
+
+            if (userStorage != null) {
+                userStorage.disconnected();
             }
         }
     }
@@ -70,7 +78,7 @@ public class Server {
         sendUserList();
     }
 
-    private void sendUserList() {
+    public void sendUserList() {
         Message message = Message.createUserListMessage(activeClients.stream()
                 .map(ClientHandler::getClientNick)
                 .collect(Collectors.toList()));

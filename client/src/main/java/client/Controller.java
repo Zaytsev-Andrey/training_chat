@@ -9,7 +9,6 @@ import javafx.fxml.Initializable;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
-import javafx.scene.image.Image;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.VBox;
 import javafx.stage.Modality;
@@ -18,7 +17,8 @@ import javafx.stage.StageStyle;
 import log.ConsoleLogger;
 import messages.Message;
 import messages.MessageType;
-import parameters.Parameter;
+import parameters.ParameterApp;
+import parameters.ParameterBD;
 
 import java.io.IOException;
 import java.io.ObjectInputStream;
@@ -26,6 +26,7 @@ import java.io.ObjectOutputStream;
 import java.net.Socket;
 import java.net.URL;
 import java.util.List;
+import java.util.Optional;
 import java.util.ResourceBundle;
 import java.util.stream.Collectors;
 
@@ -40,6 +41,8 @@ public class Controller implements Initializable {
     private PasswordField passwordField;
     @FXML
     private MenuItem menuLogOf;
+    @FXML
+    private MenuItem menuChangeNick;
     @FXML
     private VBox authPane;
     @FXML
@@ -60,10 +63,8 @@ public class Controller implements Initializable {
     private Socket socket;
     private ObjectInputStream in;
     private ObjectOutputStream out;
-
     private SessionStatus status;
     private String clientNick;
-
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
@@ -82,13 +83,11 @@ public class Controller implements Initializable {
                 }
             });
         });
-
     }
 
     private void connect() {
-
         try {
-            socket = new Socket(Parameter.IP_ADDRESS, Parameter.PORT);
+            socket = new Socket(ParameterApp.IP_ADDRESS, ParameterApp.PORT);
             ConsoleLogger.clientConnectedToServer(socket.getInetAddress().toString());
             out = new ObjectOutputStream(socket.getOutputStream());
             in = new ObjectInputStream(socket.getInputStream());
@@ -132,10 +131,7 @@ public class Controller implements Initializable {
 
     }
 
-
-
     private void auth() throws IOException {
-
         while (status == SessionStatus.NOT_AUTH) {
             try {
                 Message message = (Message) in.readObject();
@@ -150,6 +146,7 @@ public class Controller implements Initializable {
                     status = SessionStatus.CONNECTED;
                     clientNick = message.getNick();
                     switchInterface();
+                    requestHistoryOfMessages();
                     ConsoleLogger.clientPassedAuth(clientNick, socket.getInetAddress().toString());
                 }
 
@@ -167,9 +164,7 @@ public class Controller implements Initializable {
             } catch (ClassNotFoundException e) {
                 e.printStackTrace();
             }
-
         }
-
     }
 
     private void readMessage() throws IOException {
@@ -181,6 +176,19 @@ public class Controller implements Initializable {
                 if (message.getMessageType() == MessageType.END) {
                     status = SessionStatus.DISCONNECTED;
                     ConsoleLogger.clientDisconnectedToServer(clientNick);
+                }
+
+                if (message.getMessageType() == MessageType.CHANGE_NICK_OK) {
+                    clientNick = message.getNick();
+                    setTitle();
+                }
+
+                if (message.getMessageType() == MessageType.CHANGE_NICK_FAIL) {
+                    changeNickFailMessage(message.getReasonMessage());
+                }
+
+                if (message.getMessageType() == MessageType.TEXT_LIST) {
+                    loadHistoryOfMessages(message);
                 }
 
                 if (message.getMessageType() == MessageType.TEXT) {
@@ -197,7 +205,7 @@ public class Controller implements Initializable {
                     List<String> list = message.getActiveUser().stream()
                             .filter(s -> !s.equals(clientNick))
                             .collect(Collectors.toList());
-                    list.add(0, "All");
+                    list.add(0, ParameterBD.ALL_USER_NICK);
 
                     Platform.runLater(() -> {
                         activeUsers.getItems().clear();
@@ -206,10 +214,8 @@ public class Controller implements Initializable {
                 }
             } catch (ClassNotFoundException e) {
                 e.printStackTrace();
-
             }
         }
-
     }
 
     public void sendMsg(Message message) {
@@ -243,6 +249,7 @@ public class Controller implements Initializable {
 
     private void switchInterface() {
         Platform.runLater(() -> {
+            menuChangeNick.setDisable(!status.isState());
             menuLogOf.setDisable(!status.isState());
             authPane.setVisible(!status.isState());
             authPane.setManaged(!status.isState());
@@ -253,7 +260,7 @@ public class Controller implements Initializable {
             passwordField.clear();
             chatText.clear();
             stage.requestFocus();
-            recipient.setText("All");
+            recipient.setText(ParameterBD.ALL_USER_NICK);
         });
 
         setTitle();
@@ -322,7 +329,7 @@ public class Controller implements Initializable {
         Message message;
         if (!text.isEmpty()) {
             if (recipient.getText().equals("All")) {
-                message = Message.createTextMessage(text, clientNick);
+                message = Message.createTextMessage(clientNick, text);
             } else {
                 message = Message.createPrivateTextMessage(text, clientNick, recipient.getText());
             }
@@ -332,5 +339,48 @@ public class Controller implements Initializable {
 
         messageText.clear();
         messageText.requestFocus();
+    }
+
+    public void changeNick(ActionEvent actionEvent) {
+        TextInputDialog inputDialog = new TextInputDialog(clientNick);
+        inputDialog.setTitle("Change Nick");
+        inputDialog.setHeaderText("Input new nick:");
+        inputDialog.getEditor().setPrefWidth(300.0);
+        Optional<String> newNick = inputDialog.showAndWait();
+
+        if (newNick.isPresent() && !newNick.get().equals(clientNick)) {
+            Message msg = Message.createChangeNickMessage(newNick.get());
+            sendMsg(msg);
+        }
+    }
+
+    private void changeNickFailMessage(String reasonMessage) {
+        Platform.runLater(() -> {
+            Alert alert = new Alert(Alert.AlertType.ERROR, reasonMessage);
+            alert.setTitle("Change Nick");
+            alert.showAndWait();
+        });
+
+    }
+
+    private void loadHistoryOfMessages(Message message) {
+        String text;
+        StringBuilder builder = new StringBuilder();
+        for (Message msg : message.getMessageList()) {
+            if (msg.getRecipient().equals(ParameterBD.ALL_USER_NICK)) {
+                text = String.format("[%s]: %s\n", msg.getSender(), msg.getText());
+            } else {
+                text = String.format("[%s] for [%s]: %s\n", msg.getSender(), msg.getRecipient(), msg.getText());
+            }
+
+            builder.append(text);
+        }
+
+        chatText.appendText(builder.toString());
+    }
+
+    private void requestHistoryOfMessages() {
+        Message msg = Message.createGetTextMessage(clientNick);
+        sendMsg(msg);
     }
 }

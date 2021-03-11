@@ -6,6 +6,7 @@ import log.ConsoleLogger;
 import messages.Message;
 import messages.MessageType;
 import server.exceptions.AuthExceptions;
+import server.storages.MessageStorage;
 import server.storages.UserStorage;
 
 import java.io.IOException;
@@ -13,6 +14,8 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
 import java.net.SocketTimeoutException;
+import java.sql.SQLException;
+import java.util.List;
 
 public class ClientHandler {
     private SessionStatus status;
@@ -21,6 +24,7 @@ public class ClientHandler {
     private ObjectInputStream in;
     private ObjectOutputStream out;
     private UserStorage userStorage;
+    private MessageStorage messageStorage;
     private String clientNick;
 
 
@@ -28,6 +32,7 @@ public class ClientHandler {
         this.server = server;
         this.socket = socket;
         this.userStorage = userStorage;
+        this.messageStorage = (MessageStorage) userStorage;
 
         status = SessionStatus.NOT_AUTH;
 
@@ -90,6 +95,7 @@ public class ClientHandler {
 
                     try {
                         clientNick = userStorage.login(msg.getLogin(), msg.getPassword());
+
                         if (server.isClientConnected(clientNick)) {
                             answerMsg = Message.createAuthFailMessage(ReasonAuthExceptions.CLIENT_IS_ALREADY_CONNECTED);
                             sendMsg(answerMsg);
@@ -139,12 +145,50 @@ public class ClientHandler {
                     status = SessionStatus.DISCONNECTED;
                 }
 
+                if (msg.getMessageType() == MessageType.CHANGE_NICK) {
+                    Message answerMsg;
+                    try {
+                        userStorage.changeNick(clientNick, msg.getNewNick());
+                        clientNick = msg.getNewNick();
+                        answerMsg = Message.createChangeNickOkMessage(msg.getNewNick());
+                        sendMsg(answerMsg);
+                        server.sendUserList();
+                    } catch (AuthExceptions e) {
+                        answerMsg = Message.createChangeNickFailMessage(e.getReason());
+                        sendMsg(answerMsg);
+                    }
+                }
+
+                if (msg.getMessageType() == MessageType.GET_TEXT) {
+                    try {
+                        List<Message> messageList = messageStorage.getMessageList(clientNick);
+                        Message answerMsg = Message.createTextListMessage(messageList);
+                        sendMsg(answerMsg);
+                    } catch (SQLException e) {
+                        e.printStackTrace();
+                    }
+                }
+
                 if (msg.getMessageType() == MessageType.TEXT) {
-                    server.broadcastMessage(msg);
+                    try {
+                        messageStorage.addMessage(clientNick, msg.getRecipient(), msg.getText());
+                        server.broadcastMessage(msg);
+                    } catch (IllegalArgumentException e) {
+                        e.printStackTrace();
+                    } catch (SQLException e) {
+                        e.printStackTrace();
+                    }
                 }
 
                 if (msg.getMessageType() == MessageType.PRIVATE_TEXT) {
-                    server.privateMessage(msg, this);
+                    try {
+                        messageStorage.addMessage(clientNick, msg.getRecipient(), msg.getText());
+                        server.privateMessage(msg, this);
+                    } catch (IllegalArgumentException e) {
+                        e.printStackTrace();
+                    } catch (SQLException e) {
+                        e.printStackTrace();
+                    }
                 }
             } catch (ClassNotFoundException e) {
                 e.printStackTrace();
@@ -164,5 +208,7 @@ public class ClientHandler {
     public String getClientNick() {
         return clientNick;
     }
+
+
 
 }

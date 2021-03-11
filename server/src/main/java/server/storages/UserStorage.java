@@ -10,4 +10,12 @@ public interface UserStorage {
     boolean nickExist(String nick);
 
     String login(String login, String password);
+
+    default void changeNick(String nick, String newNick) {
+        throw new UnsupportedOperationException();
+    };
+
+    default void disconnected() {
+        throw new UnsupportedOperationException();
+    };
 }
