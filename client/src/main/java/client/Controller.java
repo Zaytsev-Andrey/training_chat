@@ -17,7 +17,8 @@ import javafx.stage.StageStyle;
 import log.ConsoleLogger;
 import messages.Message;
 import messages.MessageType;
-import parameters.Parameter;
+import parameters.ParameterApp;
+import parameters.ParameterBD;
 
 import java.io.IOException;
 import java.io.ObjectInputStream;
@@ -86,7 +87,7 @@ public class Controller implements Initializable {
 
     private void connect() {
         try {
-            socket = new Socket(Parameter.IP_ADDRESS, Parameter.PORT);
+            socket = new Socket(ParameterApp.IP_ADDRESS, ParameterApp.PORT);
             ConsoleLogger.clientConnectedToServer(socket.getInetAddress().toString());
             out = new ObjectOutputStream(socket.getOutputStream());
             in = new ObjectInputStream(socket.getInputStream());
@@ -204,7 +205,7 @@ public class Controller implements Initializable {
                     List<String> list = message.getActiveUser().stream()
                             .filter(s -> !s.equals(clientNick))
                             .collect(Collectors.toList());
-                    list.add(0, "All");
+                    list.add(0, ParameterBD.ALL_USER_NICK);
 
                     Platform.runLater(() -> {
                         activeUsers.getItems().clear();
@@ -259,7 +260,7 @@ public class Controller implements Initializable {
             passwordField.clear();
             chatText.clear();
             stage.requestFocus();
-            recipient.setText("All");
+            recipient.setText(ParameterBD.ALL_USER_NICK);
         });
 
         setTitle();
@@ -328,7 +329,7 @@ public class Controller implements Initializable {
         Message message;
         if (!text.isEmpty()) {
             if (recipient.getText().equals("All")) {
-                message = Message.createTextMessage(text, clientNick);
+                message = Message.createTextMessage(clientNick, text);
             } else {
                 message = Message.createPrivateTextMessage(text, clientNick, recipient.getText());
             }
@@ -362,14 +363,14 @@ public class Controller implements Initializable {
 
     }
 
-    private void loadHistoryOfMessages(Message msg) {
+    private void loadHistoryOfMessages(Message message) {
         String text;
         StringBuilder builder = new StringBuilder();
-        for (String[] arr : msg.getMessageList()) {
-            if (arr[1].equals("All")) {
-                text = String.format("[%s]: %s\n", arr[0], arr[2]);
+        for (Message msg : message.getMessageList()) {
+            if (msg.getRecipient().equals(ParameterBD.ALL_USER_NICK)) {
+                text = String.format("[%s]: %s\n", msg.getSender(), msg.getText());
             } else {
-                text = String.format("[%s] for [%s]: %s\n", arr[0], arr[1], arr[2]);
+                text = String.format("[%s] for [%s]: %s\n", msg.getSender(), msg.getRecipient(), msg.getText());
             }
 
             builder.append(text);

@@ -6,7 +6,7 @@ import java.sql.SQLException;
 import java.util.List;
 
 public interface MessageStorage {
-    void addMessage(int sender, int recipient, String message) throws SQLException;
+    void addMessage(String sender, String recipient, String message) throws SQLException;
 
-    List<String[]> getMessage(int sender) throws SQLException;
+    List<Message> getMessageList(String sender) throws SQLException;
 }

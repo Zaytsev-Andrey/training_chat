@@ -1,6 +1,8 @@
 package server.storages;
 
 import comands.ReasonAuthExceptions;
+import messages.Message;
+import parameters.ParameterBD;
 import server.exceptions.AuthExceptions;
 
 import java.sql.*;
@@ -13,21 +15,33 @@ public class SQLiteStorage implements UserStorage, MessageStorage {
     private PreparedStatement prStmtLogin;
     private PreparedStatement prStmtRegister;
     private PreparedStatement prStmtUpdateNick;
-    private PreparedStatement prStmtGetId;
-    private PreparedStatement prStmtGetNick;
     private PreparedStatement prStmtAddMsg;
     private PreparedStatement prStmtGetMsg;
 
     public SQLiteStorage() throws ClassNotFoundException, SQLException {
         connection();
-        prStmtLogin = connection.prepareStatement("SELECT id, nick FROM users WHERE login = ? AND password = ?;");
+
+        // Авторизация
+        prStmtLogin = connection.prepareStatement("SELECT nick FROM users WHERE login = ? AND password = ?;");
+
+        // Регистрация
         prStmtRegister = connection.prepareStatement("INSERT INTO users (login, password, nick) VALUES (?, ?, ?);");
-        prStmtUpdateNick = connection.prepareStatement("UPDATE users SET nick = ? WHERE id = ?;");
-        prStmtGetId = connection.prepareStatement("SELECT id FROM users WHERE nick = ?;");
-        prStmtGetNick = connection.prepareStatement("SELECT nick FROM users WHERE id = ?;");
-        prStmtAddMsg = connection.prepareStatement("INSERT INTO messages (sender_id, recipient_id, message) VALUES (?, ?, ?);");
-        prStmtGetMsg = connection.prepareStatement("SELECT sender_id, recipient_id, message FROM messages " +
-                "WHERE sender_id = ? OR recipient_id = ? OR recipient_id = ?;");
+
+        // Изменение nick
+        prStmtUpdateNick = connection.prepareStatement("UPDATE users SET nick = ? WHERE nick = ?;");
+
+        // Добавление сообщения
+        prStmtAddMsg = connection.prepareStatement("INSERT INTO messages (sender_id, recipient_id, message) VALUES ( \n" +
+                "    (SELECT id FROM users WHERE nick = ?),\n" +
+                "    (SELECT id FROM users WHERE nick = ?),\n" +
+                "    ?);");
+
+        // Запрос сообщения
+        prStmtGetMsg = connection.prepareStatement("SELECT snd.nick AS sender, rcp.nick AS recipient, message \n" +
+                "    FROM messages AS msg\n" +
+                "    LEFT JOIN users AS snd ON (snd.id = msg.sender_id)\n" +
+                "    LEFT JOIN users AS rcp ON (rcp.id = msg.recipient_id)\n" +
+                "    WHERE snd.nick = ? OR rcp.nick = ? OR rcp.nick = ?;");
 
     }
 
@@ -80,16 +94,16 @@ public class SQLiteStorage implements UserStorage, MessageStorage {
     }
 
     @Override
-    public Client login(String login, String password) {
+    public String login(String login, String password) {
         ResultSet resultSet = null;
-        Client client;
+        String nick;
         try {
             prStmtLogin.setString(1, login.toLowerCase());
             prStmtLogin.setString(2, password);
             resultSet = prStmtLogin.executeQuery();
 
             if (resultSet.next()) {
-                client = new Client(resultSet.getInt("id"), resultSet.getString("nick"));
+                nick = resultSet.getString("nick");
             } else {
                 throw new AuthExceptions(ReasonAuthExceptions.INCORRECT_LOGIN_OR_PASS);
             }
@@ -105,14 +119,14 @@ public class SQLiteStorage implements UserStorage, MessageStorage {
             }
         }
 
-        return client;
+        return nick;
     }
 
     @Override
-    public void changeNick(int id, String newNick) {
+    public void changeNick(String nick, String newNick) {
         try {
             prStmtUpdateNick.setString(1, newNick.toLowerCase());
-            prStmtUpdateNick.setInt(2, id);
+            prStmtUpdateNick.setString(2, nick);
             prStmtUpdateNick.executeUpdate();
         } catch (SQLException e) {
             throw new AuthExceptions(ReasonAuthExceptions.NICK_EXIST);
@@ -120,61 +134,30 @@ public class SQLiteStorage implements UserStorage, MessageStorage {
     }
 
     @Override
-    public int getIdForNick(String nick) throws SQLException {
-
-        prStmtGetId.setString(1, nick);
-        ResultSet resultSet = prStmtGetId.executeQuery();
-
-        if (resultSet.next()) {
-            int id = resultSet.getInt("id");
-            resultSet.close();
-            return id;
-        } else {
-            throw new IllegalArgumentException();
-        }
-    }
-
-    @Override
-    public void addMessage(int sender, int recipient, String message) throws SQLException {
-        prStmtAddMsg.setInt(1, sender);
-        prStmtAddMsg.setInt(2, recipient);
+    public void addMessage(String sender, String recipient, String message) throws SQLException {
+        prStmtAddMsg.setString(1, sender);
+        prStmtAddMsg.setString(2, recipient);
         prStmtAddMsg.setString(3, message);
         prStmtAddMsg.executeUpdate();
     }
 
     @Override
-    public List<String[]> getMessage(int sender) throws SQLException {
-        int allId = getIdForNick("All");
-        prStmtGetMsg.setInt(1, sender);
-        prStmtGetMsg.setInt(2, sender);
-        prStmtGetMsg.setInt(3, allId);
+    public List<Message> getMessageList(String sender) throws SQLException {
+        prStmtGetMsg.setString(1, sender);
+        prStmtGetMsg.setString(2, sender);
+        prStmtGetMsg.setString(3, ParameterBD.ALL_USER_NICK);
         ResultSet resultSet = prStmtGetMsg.executeQuery();
 
-        List<String[]> messageList = new ArrayList<>();
+        List<Message> messageList = new ArrayList<>();
         while (resultSet.next()) {
-            String[] arr = new String[3];
+            Message msg = Message.createPrivateTextMessage(resultSet.getString("message"),
+                    resultSet.getString("sender"), resultSet.getString("recipient"));
 
-            arr[0] = getNickForId(resultSet.getInt("sender_id"));
-            arr[1] = getNickForId(resultSet.getInt("recipient_id"));
-            arr[2] = resultSet.getString("message");
-
-            messageList.add(arr);
+            messageList.add(msg);
         }
 
         resultSet.close();
         return messageList;
     }
 
-    private String getNickForId(int id) throws SQLException {
-        prStmtGetNick.setInt(1, id);
-        ResultSet resultSet = prStmtGetNick.executeQuery();
-
-        if (resultSet.next()) {
-            String nick = resultSet.getString("nick");
-            resultSet.close();
-            return nick;
-        } else {
-            throw new IllegalArgumentException();
-        }
-    }
 }

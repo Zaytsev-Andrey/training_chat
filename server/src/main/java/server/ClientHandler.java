@@ -6,7 +6,6 @@ import log.ConsoleLogger;
 import messages.Message;
 import messages.MessageType;
 import server.exceptions.AuthExceptions;
-import server.storages.Client;
 import server.storages.MessageStorage;
 import server.storages.UserStorage;
 
@@ -26,7 +25,7 @@ public class ClientHandler {
     private ObjectOutputStream out;
     private UserStorage userStorage;
     private MessageStorage messageStorage;
-    private Client client;
+    private String clientNick;
 
 
     public ClientHandler(Socket socket, Server server, UserStorage userStorage) {
@@ -52,7 +51,7 @@ public class ClientHandler {
                 status = SessionStatus.DISCONNECTED;
                 ConsoleLogger.authorizationTimedOut(socket.getInetAddress().toString());
             } catch (IOException e) {
-                ConsoleLogger.clientInterruptedConnection(client.getNick());
+                ConsoleLogger.clientInterruptedConnection(clientNick);
             }
             finally {
                 server.disconnectClient(this);
@@ -87,7 +86,7 @@ public class ClientHandler {
 
                 if (msg.getMessageType() == MessageType.END) {
                     sendMsg(msg);
-                    ConsoleLogger.clientDisconnectedToServer(client.getNick());
+                    ConsoleLogger.clientDisconnectedToServer(clientNick);
                     status = SessionStatus.DISCONNECTED;
                 }
 
@@ -95,20 +94,20 @@ public class ClientHandler {
                     Message answerMsg;
 
                     try {
-                        client = userStorage.login(msg.getLogin(), msg.getPassword());
+                        clientNick = userStorage.login(msg.getLogin(), msg.getPassword());
 
-                        if (server.isClientConnected(client.getId())) {
+                        if (server.isClientConnected(clientNick)) {
                             answerMsg = Message.createAuthFailMessage(ReasonAuthExceptions.CLIENT_IS_ALREADY_CONNECTED);
                             sendMsg(answerMsg);
                             continue;
                         }
 
-                        answerMsg = Message.createAuthOkMessage(client.getNick());
+                        answerMsg = Message.createAuthOkMessage(clientNick);
                         status = SessionStatus.CONNECTED;
                         sendMsg(answerMsg);
                         server.connectClient(this);
                         socket.setSoTimeout(0);
-                        ConsoleLogger.clientPassedAuth(client.getNick(), socket.getInetAddress().toString());
+                        ConsoleLogger.clientPassedAuth(clientNick, socket.getInetAddress().toString());
                     } catch (AuthExceptions e) {
                         answerMsg = Message.createAuthFailMessage(e.getReason());
                         sendMsg(answerMsg);
@@ -142,15 +141,15 @@ public class ClientHandler {
 
                 if (msg.getMessageType() == MessageType.END) {
                     sendMsg(msg);
-                    ConsoleLogger.clientDisconnectedToServer(client.getNick());
+                    ConsoleLogger.clientDisconnectedToServer(clientNick);
                     status = SessionStatus.DISCONNECTED;
                 }
 
                 if (msg.getMessageType() == MessageType.CHANGE_NICK) {
                     Message answerMsg;
                     try {
-                        userStorage.changeNick(client.getId(), msg.getNewNick());
-                        client.setNick(msg.getNewNick());
+                        userStorage.changeNick(clientNick, msg.getNewNick());
+                        clientNick = msg.getNewNick();
                         answerMsg = Message.createChangeNickOkMessage(msg.getNewNick());
                         sendMsg(answerMsg);
                         server.sendUserList();
@@ -162,8 +161,7 @@ public class ClientHandler {
 
                 if (msg.getMessageType() == MessageType.GET_TEXT) {
                     try {
-                        int senderId = userStorage.getIdForNick(msg.getSender());
-                        List<String[]> messageList = messageStorage.getMessage(senderId);
+                        List<Message> messageList = messageStorage.getMessageList(clientNick);
                         Message answerMsg = Message.createTextListMessage(messageList);
                         sendMsg(answerMsg);
                     } catch (SQLException e) {
@@ -173,10 +171,8 @@ public class ClientHandler {
 
                 if (msg.getMessageType() == MessageType.TEXT) {
                     try {
-                        int recipientId = userStorage.getIdForNick(msg.getRecipient());
-                        messageStorage.addMessage(client.getId(), recipientId, msg.getText());
+                        messageStorage.addMessage(clientNick, msg.getRecipient(), msg.getText());
                         server.broadcastMessage(msg);
-
                     } catch (IllegalArgumentException e) {
                         e.printStackTrace();
                     } catch (SQLException e) {
@@ -186,8 +182,7 @@ public class ClientHandler {
 
                 if (msg.getMessageType() == MessageType.PRIVATE_TEXT) {
                     try {
-                        int recipientId = userStorage.getIdForNick(msg.getRecipient());
-                        messageStorage.addMessage(client.getId(), recipientId, msg.getText());
+                        messageStorage.addMessage(clientNick, msg.getRecipient(), msg.getText());
                         server.privateMessage(msg, this);
                     } catch (IllegalArgumentException e) {
                         e.printStackTrace();
@@ -210,12 +205,8 @@ public class ClientHandler {
         }
     }
 
-    public int getClientID() {
-        return client.getId();
-    }
-
     public String getClientNick() {
-        return client.getNick();
+        return clientNick;
     }
 
 

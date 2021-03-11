@@ -2,9 +2,8 @@ package server;
 
 import log.ConsoleLogger;
 import messages.Message;
-import parameters.Parameter;
+import parameters.ParameterApp;
 import server.storages.SQLiteStorage;
-import server.storages.SimpleUserStorage;
 import server.storages.UserStorage;
 
 import java.io.IOException;
@@ -22,10 +21,11 @@ public class Server {
 
     public Server() {
         try {
-            activeClients = new CopyOnWriteArrayList();
-            serverSocket = new ServerSocket(Parameter.PORT);
-            ConsoleLogger.serverIsRunning();
             userStorage = new SQLiteStorage();
+            activeClients = new CopyOnWriteArrayList();
+            serverSocket = new ServerSocket(ParameterApp.PORT);
+            ConsoleLogger.serverIsRunning();
+
 
             while (true) {
                 socket = serverSocket.accept();
@@ -86,9 +86,9 @@ public class Server {
         broadcastMessage(message);
     }
 
-    public boolean isClientConnected(int id) {
+    public boolean isClientConnected(String nick) {
         return activeClients.stream()
-                .map(ClientHandler::getClientID)
-                .anyMatch(c -> c.equals(id));
+                .map(ClientHandler::getClientNick)
+                .anyMatch(c -> c.equals(nick));
     }
 }

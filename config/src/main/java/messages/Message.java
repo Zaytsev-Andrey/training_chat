@@ -1,6 +1,7 @@
 package messages;
 
 import comands.ReasonAuthExceptions;
+import parameters.ParameterBD;
 
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -18,7 +19,7 @@ public class Message implements Serializable {
     private String recipient;
     private String reasonAuthException;
     private List<String> activeUser;
-    private List<String[]> messageList;
+    private List<Message> messageList;
     private Date date;
 
     private Message() {
@@ -93,12 +94,12 @@ public class Message implements Serializable {
         return message;
     }
 
-    public static Message createTextMessage(String text, String sender) {
+    public static Message createTextMessage(String sender, String text) {
         Message message = new Message();
         message.type = MessageType.TEXT.name();
         message.text = text;
         message.sender = sender;
-        message.recipient = "All";
+        message.recipient = ParameterBD.ALL_USER_NICK;
         message.date = new Date();
         return message;
     }
@@ -119,7 +120,7 @@ public class Message implements Serializable {
         return message;
     }
 
-    public static Message createTextListMessage(List<String[]> messageList) {
+    public static Message createTextListMessage(List<Message> messageList) {
         Message message = new Message();
         message.type = MessageType.TEXT_LIST.name();
         message.messageList = messageList;
@@ -187,7 +188,7 @@ public class Message implements Serializable {
         return date;
     }
 
-    public List<String[]> getMessageList() {
+    public List<Message> getMessageList() {
         return messageList;
     }
 }

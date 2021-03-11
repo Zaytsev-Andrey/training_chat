@@ -1,7 +1,5 @@
 package server.storages;
 
-import java.sql.SQLException;
-
 public interface UserStorage {
     void add(String login, String password, String nick);
 
@@ -11,15 +9,11 @@ public interface UserStorage {
 
     boolean nickExist(String nick);
 
-    Client login(String login, String password);
+    String login(String login, String password);
 
-    default void changeNick(int id, String newNick) {
+    default void changeNick(String nick, String newNick) {
         throw new UnsupportedOperationException();
     };
-
-    default int getIdForNick(String string) throws SQLException {
-        throw new UnsupportedOperationException();
-    }
 
     default void disconnected() {
         throw new UnsupportedOperationException();
