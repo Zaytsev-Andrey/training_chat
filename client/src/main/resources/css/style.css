@@ -16,3 +16,8 @@
     -fx-max-width: Infinity;
     -fx-pref-width: 50%;
 }
+
+#chatText .scroll-pane {
+    -fx-hbar-policy: never;
+    -fx-vbar-policy: always;
+}

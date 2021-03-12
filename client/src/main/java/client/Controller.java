@@ -1,5 +1,7 @@
 package client;
 
+import client.storages.FileStorage;
+import client.storages.Storage;
 import comands.SessionStatus;
 import javafx.application.Platform;
 import javafx.event.ActionEvent;
@@ -31,6 +33,8 @@ import java.util.ResourceBundle;
 import java.util.stream.Collectors;
 
 public class Controller implements Initializable {
+    private static final int BUFFER_HISTORY_SIZE = 100;
+
     @FXML
     private TextArea chatText;
     @FXML
@@ -55,6 +59,8 @@ public class Controller implements Initializable {
     private Button recipient;
     @FXML
     private Button btnLogin;
+    @FXML
+    private ScrollPane scrollChat;
 
     private Stage stage;
     private Stage regStage;
@@ -64,15 +70,22 @@ public class Controller implements Initializable {
     private ObjectInputStream in;
     private ObjectOutputStream out;
     private SessionStatus status;
+    private String login;
     private String clientNick;
+    private Storage storage;
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
         status = SessionStatus.DISCONNECTED;
 
+        chatText.scrollTopProperty().addListener((obs, oldVal, newVal) -> {
+            if (newVal.doubleValue() < 0.01) {
+                requestFileHistory();
+            }
+        });
+
         Platform.runLater(() -> {
             stage = (Stage) chatText.getScene().getWindow();
-
 
             programName = stage.getTitle();
             btnLogin.requestFocus();
@@ -104,6 +117,8 @@ public class Controller implements Initializable {
                     status = SessionStatus.DISCONNECTED;
                     clientNick = null;
                     switchInterface();
+
+                    storage.close();
 
                     try {
                         out.close();
@@ -145,8 +160,13 @@ public class Controller implements Initializable {
                     clientNick = message.getNick();
                     status = SessionStatus.CONNECTED;
                     clientNick = message.getNick();
+
                     switchInterface();
-                    requestHistoryOfMessages();
+
+                    storage = new FileStorage(login, BUFFER_HISTORY_SIZE);
+                    requestFileHistory();
+
+//                    requestHistoryOfMessages();
                     ConsoleLogger.clientPassedAuth(clientNick, socket.getInetAddress().toString());
                 }
 
@@ -194,11 +214,13 @@ public class Controller implements Initializable {
                 if (message.getMessageType() == MessageType.TEXT) {
                     String text = String.format("[%s]: %s\n", message.getSender(), message.getText());
                     chatText.appendText(text);
+                    storage.write(text);
                 }
 
                 if (message.getMessageType() == MessageType.PRIVATE_TEXT) {
                     String text = String.format("[%s] for [%s]: %s\n", message.getSender(), message.getRecipient(), message.getText());
                     chatText.appendText(text);
+                    storage.write(text);
                 }
 
                 if (message.getMessageType() == MessageType.USER_LIST) {
@@ -240,7 +262,7 @@ public class Controller implements Initializable {
     }
 
     public void loginAction(ActionEvent actionEvent) {
-        String login = loginField.getText().toLowerCase().trim();
+        login = loginField.getText().toLowerCase().trim();
         String pass = passwordField.getText().trim();
 
         Message message = Message.createAuthMessage(login, pass);
@@ -259,7 +281,7 @@ public class Controller implements Initializable {
             wrongAuthMessage.setText("");
             passwordField.clear();
             chatText.clear();
-            stage.requestFocus();
+            messageText.requestFocus();
             recipient.setText(ParameterBD.ALL_USER_NICK);
         });
 
@@ -383,4 +405,22 @@ public class Controller implements Initializable {
         Message msg = Message.createGetTextMessage(clientNick);
         sendMsg(msg);
     }
+
+    private void requestFileHistory() {
+        List<String> history = storage.nextHistoryList();
+        if (history != null) {
+            StringBuilder builder = new StringBuilder();
+            history.forEach(s -> builder.append(s).append("\n"));
+            setChatText(builder.toString());
+        }
+
+    }
+
+    private void setChatText(String text) {
+        Platform.runLater(() -> {
+            chatText.insertText(0, text);
+            chatText.end();
+        });
+    }
+
 }
