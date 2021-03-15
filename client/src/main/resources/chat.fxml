@@ -14,6 +14,7 @@
 <?import javafx.scene.control.PasswordField?>
 <?import javafx.scene.control.ListView?>
 <?import javafx.scene.control.SeparatorMenuItem?>
+<?import javafx.scene.control.ScrollPane?>
 <VBox fx:controller="client.Controller"
       xmlns:fx="http://javafx.com/fxml" alignment="center" stylesheets="css/style.css">
 
@@ -40,7 +41,7 @@
     <VBox fx:id="chatPane" VBox.vgrow="ALWAYS" visible="false" managed="false">
         <HBox VBox.vgrow="ALWAYS">
             <ListView fx:id="activeUsers" onMouseClicked="#chooseAction" visible="false" managed="false" />
-            <TextArea fx:id="chatText" VBox.vgrow="ALWAYS" HBox.hgrow="ALWAYS" editable="false" />
+            <TextArea fx:id="chatText" HBox.hgrow="ALWAYS" editable="false" wrapText="true" focusTraversable="false" />
         </HBox>
 
 
