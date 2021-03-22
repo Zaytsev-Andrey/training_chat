@@ -17,7 +17,7 @@ import java.net.SocketTimeoutException;
 import java.sql.SQLException;
 import java.util.List;
 
-public class ClientHandler {
+public class ClientHandler implements Runnable {
     private SessionStatus status;
     private Server server;
     private Socket socket;
@@ -36,45 +36,50 @@ public class ClientHandler {
 
         status = SessionStatus.NOT_AUTH;
 
-        new Thread(() -> {
+//        new Thread(() -> {
+//
+//        }).start();
+
+
+    }
+
+    @Override
+    public void run() {
+        try {
+            out = new ObjectOutputStream(socket.getOutputStream());
+            in = new ObjectInputStream(socket.getInputStream());
+            ConsoleLogger.clientConnectedToServer(socket.getInetAddress().toString());
+            socket.setSoTimeout(120000);
+
+            auth();
+            readMessage();
+        } catch (SocketTimeoutException e) {
+            Message msg = Message.createEndMessage();
+            sendMsg(msg);
+            status = SessionStatus.DISCONNECTED;
+            ConsoleLogger.authorizationTimedOut(socket.getInetAddress().toString());
+        } catch (IOException e) {
+            ConsoleLogger.clientInterruptedConnection(clientNick);
+        }
+        finally {
+            server.disconnectClient(this);
+
             try {
-                out = new ObjectOutputStream(socket.getOutputStream());
-                in = new ObjectInputStream(socket.getInputStream());
-                ConsoleLogger.clientConnectedToServer(socket.getInetAddress().toString());
-                socket.setSoTimeout(120000);
-
-                auth();
-                readMessage();
-            } catch (SocketTimeoutException e) {
-                Message msg = Message.createEndMessage();
-                sendMsg(msg);
-                status = SessionStatus.DISCONNECTED;
-                ConsoleLogger.authorizationTimedOut(socket.getInetAddress().toString());
+                in.close();
             } catch (IOException e) {
-                ConsoleLogger.clientInterruptedConnection(clientNick);
+                e.printStackTrace();
             }
-            finally {
-                server.disconnectClient(this);
-
-                try {
-                    in.close();
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-                try {
-                    out.close();
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-                try {
-                    socket.close();
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
+            try {
+                out.close();
+            } catch (IOException e) {
+                e.printStackTrace();
             }
-        }).start();
-
-
+            try {
+                socket.close();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
     }
 
     private void auth() throws IOException {
