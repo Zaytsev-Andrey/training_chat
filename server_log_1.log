@@ -1,0 +1,4 @@
+мар 23, 2021 12:03:48 AM server.ClientHandler auth
+WARNING: Authentication error from address /127.0.0.1. INCORRECT_LOGIN_OR_PASS
+мар 23, 2021 12:04:04 AM server.ClientHandler auth
+WARNING: Registration error with login "qwe" and nickname "qwe". LOGIN_OR_NICK_EXIST

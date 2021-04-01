@@ -1,6 +1,5 @@
 package server;
 
-import log.ConsoleLogger;
 import messages.Message;
 import parameters.ParameterApp;
 import server.storages.SQLiteStorage;
@@ -13,9 +12,13 @@ import java.sql.SQLException;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
 public class Server {
+    private static final Logger LOGGER = Logger.getLogger(Server.class.getName());
+
     private ServerSocket serverSocket;
     private Socket socket;
     private CopyOnWriteArrayList<ClientHandler> activeClients;
@@ -47,7 +50,7 @@ public class Server {
             activeClients = new CopyOnWriteArrayList();
             serverSocket = new ServerSocket(ParameterApp.PORT);
 
-            ConsoleLogger.serverIsRunning();
+            LOGGER.info("Server is running...");
 
             while (true) {
                 socket = serverSocket.accept();
@@ -56,9 +59,9 @@ public class Server {
             }
 
         } catch (ClassNotFoundException | SQLException e) {
-            e.printStackTrace();
+            LOGGER.log(Level.SEVERE, "Database connection error", e);
         } catch (IOException e) {
-            e.printStackTrace();
+            LOGGER.log(Level.SEVERE, "Server socket error", e);
         } finally {
             executorService.shutdown();
 
@@ -66,7 +69,7 @@ public class Server {
                 try {
                     serverSocket.close();
                 } catch (IOException e) {
-                    e.printStackTrace();
+                    LOGGER.log(Level.SEVERE, "Server socket wasn't closed", e);
                 }
             }
 
